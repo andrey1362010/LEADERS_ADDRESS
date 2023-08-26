@@ -1,3 +1,5 @@
+![Alt text](https://i0.wp.com/neptune.ai/wp-content/uploads/2022/10/When-to-Choose-CatBoost-Over-XGBoost-or-LightGBM-Practical-Guide_13.png?resize=771%2C431&ssl=1)
+
 ***Как собрать докер***
 -  Собираем докер: ```sudo docker build --tag address_hackaton```
 -  Запускаем Docker: ```sudo docker run --publish 8000:5000 --rm address_hackaton```
