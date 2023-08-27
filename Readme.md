@@ -10,10 +10,11 @@
 - Дополнительно извлекались все числа, находящиеся в строке.
 - В качестве модели использовался ***CatboostClassifier*** с функцией потерь ***LogLoss***
 - Для инференса сравнивается каждый пример со всей базой адресов и выбирается топ K по максимизации вероятности
+- Для обучения с нуля смотрите файл ***for_fit.py***
 
 ***Как собрать докер***
-- Скачиваем файл ***model_ft.joblib*** в папку ***data***: https://disk.yandex.ru/d/-MIyyaxwjshGgw
--  Собираем докер: ```sudo docker build --tag address_hackaton```
+- Скачиваем файл ***model_ft.joblib*** в папку ***data***: https://disk.yandex.ru/d/8r13dXjHYmQUSw
+-  Собираем докер: ```sudo docker build --tag address_hackaton .```
 -  Запускаем Docker: ```sudo docker run --publish 8000:5000 --rm address_hackaton```
 -  ***Заметка!*** Сервер стартует примерно через ***30 сек***
 

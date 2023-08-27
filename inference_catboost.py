@@ -7,6 +7,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from gensim.models import FastText
 from tqdm import tqdm
 import joblib
+from sklearn.decomposition import TruncatedSVD
 
 def address_calc(row):
     def preprocess_string(input_string):
@@ -23,7 +24,7 @@ def address_calc(row):
         
         return preprocessed_string
     
-    def compare_strings(doc, a, win, step):
+    def compare_strings(doc, a):
         q1 = np.zeros((len(doc), vector_size * len(a)))
         # Применяем предварительную обработку
         pss = []
@@ -47,14 +48,12 @@ def address_calc(row):
                 pass        
         
                 
-        tfidf_1 = tfidf_vectorizer.transform(doc)
-        dense = tfidf_1.toarray()
-        dense[dense == 0] = np.nan
-        q = np.nanquantile(dense, a, axis = 1)    
-        return np.hstack((q1, q.T, numbers_ar))
+        tfidf_1 = tfidf_vectorizer.transform(pss)
+        q = svd.transform(tfidf_1)
+        return np.hstack((q1, q, numbers_ar))
 
 
-    def compare_strings_one(string, a, win, step):
+    def compare_strings_one(string, a):
         ps = preprocess_string(string)
         q1 = np.zeros((1, vector_size * len(a)))
         try:
@@ -73,19 +72,17 @@ def address_calc(row):
         except:
             pass
             
-        tfidf_1 = tfidf_vectorizer.transform([string])
-        dense = tfidf_1.toarray()
-        dense[dense == 0] = np.nan
-        q = np.nanquantile(dense, a)    
+        tfidf_1 = tfidf_vectorizer.transform([ps])
+        q = svd.transform(tfidf_1)
         
         return np.hstack((q1.reshape(1, -1), q.reshape(1, -1), numbers_ar.reshape(1, -1)))
     
-    vector_size = 25
-    win, step = 10, 5
+    vector_size = 20    
     a = np.arange(0, 1.1, 0.25)
     
     tfidf_vectorizer = joblib.load('tfidf_vectorizer.joblib')
     model_ft = joblib.load('model_ft.joblib')
+    svd = joblib.load('svd.joblib')
     model = CatBoostClassifier()
     model.load_model('catboost_model.cbm')
     
@@ -104,12 +101,12 @@ def address_calc(row):
     
     stop_words = set(stopwords.words('russian'))    
     addresses = building['full_address'].values
-    ids = building['id'].values
-    builds_prep = compare_strings(building['full_address'], a, win, step)
+    ids = building['target_building_id'].values
+    builds_prep = compare_strings(building['full_address'], a)
     
     ones_ar = np.ones(builds_prep.shape)
     n_top = 10
-    test = compare_strings_one(row, a, win, step)
+    test = compare_strings_one(row, a)
     test = test.flatten() * ones_ar
     test_all = np.hstack((test, builds_prep, test - builds_prep))
     add_test_metrics = pd.DataFrame(test_all, columns = [f'emb{i}' for i in range(test_all.shape[1])])
@@ -120,6 +117,5 @@ def address_calc(row):
     ind = np.argsort(predict[:, 1])[::-1]
     top = list(addresses[ind[:n_top]])
     top_ids = list(ids[ind[:n_top]])
-
-    return top
+    return top, top_ids
 

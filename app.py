@@ -6,6 +6,7 @@ import re
 from nltk.corpus import stopwords
 from tqdm import tqdm
 import joblib
+from sklearn.decomposition import TruncatedSVD
 
 app = Flask(__name__)
 
@@ -24,7 +25,7 @@ def preprocess_string(input_string):
 
     return preprocessed_string
 
-def compare_strings(doc, a, win, step):
+def compare_strings(doc, a):
     q1 = np.zeros((len(doc), vector_size * len(a)))
     # Применяем предварительную обработку
     pss = []
@@ -48,14 +49,12 @@ def compare_strings(doc, a, win, step):
             pass
 
 
-    tfidf_1 = tfidf_vectorizer.transform(doc)
-    dense = tfidf_1.toarray()
-    dense[dense == 0] = np.nan
-    q = np.nanquantile(dense, a, axis = 1)
-    return np.hstack((q1, q.T, numbers_ar))
+    tfidf_1 = tfidf_vectorizer.transform(pss)
+    q = svd.transform(tfidf_1)
+    return np.hstack((q1, q, numbers_ar))
 
 
-def compare_strings_one(string, a, win, step):
+def compare_strings_one(string, a):
     ps = preprocess_string(string)
     q1 = np.zeros((1, vector_size * len(a)))
     try:
@@ -74,19 +73,18 @@ def compare_strings_one(string, a, win, step):
     except:
         pass
 
-    tfidf_1 = tfidf_vectorizer.transform([string])
-    dense = tfidf_1.toarray()
-    dense[dense == 0] = np.nan
-    q = np.nanquantile(dense, a)
+    tfidf_1 = tfidf_vectorizer.transform([ps])
+    q = svd.transform(tfidf_1)
 
     return np.hstack((q1.reshape(1, -1), q.reshape(1, -1), numbers_ar.reshape(1, -1)))
 
-vector_size = 25
-win, step = 10, 5
+
+vector_size = 20
 a = np.arange(0, 1.1, 0.25)
 
 tfidf_vectorizer = joblib.load('data/tfidf_vectorizer.joblib')
 model_ft = joblib.load('data/model_ft.joblib')
+svd = joblib.load('data/svd.joblib')
 model = CatBoostClassifier()
 model.load_model('data/catboost_model.cbm')
 
@@ -106,14 +104,14 @@ building['target_building_id'] = building['target_building_id'].astype(int)
 stop_words = set(stopwords.words('russian'))
 addresses = building['full_address'].values
 ids = building['target_building_id'].values
-builds_prep = compare_strings(building['full_address'], a, win, step)
+builds_prep = compare_strings(building['full_address'], a)
 
 
 
 def process_address(row):
     ones_ar = np.ones(builds_prep.shape)
     n_top = 10
-    test = compare_strings_one(row, a, win, step)
+    test = compare_strings_one(row, a)
     test = test.flatten() * ones_ar
     test_all = np.hstack((test, builds_prep, test - builds_prep))
     add_test_metrics = pd.DataFrame(test_all, columns = [f'emb{i}' for i in range(test_all.shape[1])])
